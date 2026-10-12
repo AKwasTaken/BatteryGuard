@@ -7,11 +7,7 @@
 
 import SwiftUI
 
-@main
-struct BatteryGuardApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
+@main struct BatteryGuardApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    var body: some Scene { Settings { EmptyView() } }
 }
