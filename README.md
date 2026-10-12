@@ -10,8 +10,6 @@
 <br><br><br>
 </div>
 
-# BatteryGuard
-
 A lightweight, zero-bloat menu bar utility for Apple Silicon that manages battery charging thresholds without manual polling or background battery drain.
 
 ## What it does
