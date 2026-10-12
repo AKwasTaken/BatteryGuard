@@ -10,13 +10,17 @@ import AppKit
 import SwiftUI
 import ServiceManagement
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private let model = BatteryModel()
+    
+    func popoverWillShow(_ n: Notification) { model.startFastRefresh() }
+    func popoverDidClose(_ n: Notification) { model.stopFastRefresh() }
 
     func applicationDidFinishLaunching(_ n: Notification) {
         popover.behavior = .transient
+        popover.delegate = self
         popover.contentViewController = NSHostingController(rootView: ControlPanel().environmentObject(model))
 
         if let b = item.button {
@@ -32,6 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HelperClient.shared.push(upper: Int(d.object(forKey: "upper") as? Double ?? 80),
                                  sailing: d.bool(forKey: "sailing"),
                                  floor: Int(d.object(forKey: "floor") as? Double ?? 40))
+        HelperClient.shared.ensureCurrent()
+
     }
 
     @objc private func clicked(_ sender: NSStatusBarButton) {

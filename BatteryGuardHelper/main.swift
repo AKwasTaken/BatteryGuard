@@ -64,14 +64,17 @@ final class Engine: NSObject, NSXPCListenerDelegate, BatteryHelperProtocol {
 
     // MARK: XPC
     func configure(upper: Int, sailingEnabled: Bool, floor: Int, reply: @escaping (Bool) -> Void) {
-        if sailingEnabled != sailing { refilling = false }
+        let newFloor = min(max(floor, 20), 80)
+        if sailingEnabled != sailing || newFloor != self.floor { refilling = false }
         d.set(min(max(upper, 50), 100), forKey: "upper")
-        d.set(min(max(floor, 20), 80), forKey: "floor")
+        d.set(newFloor, forKey: "floor")
         d.set(sailingEnabled, forKey: "sailing")
-        lastCeiling = nil                              // force a fresh write
+        lastCeiling = nil
         evaluate(); reply(true)
     }
     func resetOverrides(reply: @escaping (Bool) -> Void) { reply(restoreOriginal()) }
+    func build(reply: @escaping (String) -> Void) { reply(myBuild) }
+    func restart() { exit(0) }     // launchd (KeepAlive) relaunches the new binary; no gap in the limit
     func status(reply: @escaping (Int, Bool, Bool) -> Void) {
         let s = PowerSnapshot.read(); reply(s?.percent ?? 0, s?.onAC ?? false, holding)
     }
@@ -85,6 +88,7 @@ final class Engine: NSObject, NSXPCListenerDelegate, BatteryHelperProtocol {
     }
 }
 
+let myBuild = fingerprint(of: Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0]))
 let engine = Engine()
 
 // Crash guard: on a normal stop, put Apple's own limit back

@@ -9,9 +9,11 @@
 import Foundation
 import ServiceManagement
 import os
+import Combine
 
-final class HelperClient {
+final class HelperClient: ObservableObject {
     static let shared = HelperClient()
+    @Published var alive = true
     private var conn: NSXPCConnection?
 
     private let log = Logger(subsystem: "ak.BatteryGuard", category: "app")
@@ -51,6 +53,27 @@ final class HelperClient {
 
     func push(upper: Int, sailing: Bool, floor: Int) {
         proxy?.configure(upper: upper, sailingEnabled: sailing, floor: floor) { _ in }
+        check()
+    }
+    
+    func check() {
+        _ = proxy
+        let p = conn?.remoteObjectProxyWithErrorHandler { [weak self] _ in
+            DispatchQueue.main.async { self?.alive = false }
+        } as? BatteryHelperProtocol
+        p?.status { [weak self] _, _, _ in
+            DispatchQueue.main.async { self?.alive = true }
+        }
+    }
+    
+    /// At launch: if the running helper isn't the one bundled in this app, ask it to restart.
+    func ensureCurrent() {
+        let mine = fingerprint(of: Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/BatteryGuardHelper"))
+        proxy?.build { [weak self] running in
+            guard running != mine else { return }
+            self?.log.notice("helper outdated (\(running, privacy: .public) vs \(mine, privacy: .public)), restarting")
+            self?.proxy?.restart()
+        }
     }
 }
 

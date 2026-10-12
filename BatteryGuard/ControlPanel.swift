@@ -14,6 +14,7 @@ struct ControlPanel: View {
     @AppStorage("upper") var upper = 80.0
     @AppStorage("floor") var floor = 40.0
     @AppStorage("sailing") var sailing = false
+    @ObservedObject var helper = HelperClient.shared
 
     private func push() {
         HelperClient.shared.push(upper: Int(upper), sailing: sailing, floor: Int(floor))
@@ -24,7 +25,7 @@ struct ControlPanel: View {
             HStack {
                 Text("\(m.percent)%").font(.system(size: 28, weight: .semibold, design: .rounded))
                 Spacer()
-                Label(m.onAC ? (m.charging ? "Charging" : "On Power Adapter") : "On Battery",
+                Label(m.onAC ? (m.charging ? "Charging" : "Plugged in, not charging") : "On Battery",
                       systemImage: m.onAC ? "powerplug.fill" : "battery.50percent")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
@@ -55,6 +56,12 @@ struct ControlPanel: View {
                 }
                 .font(.caption).monospacedDigit()
             }
+            
+            if !helper.alive {
+                Label("Helper isn't running, so limits aren't being applied.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption).foregroundStyle(.orange)
+            }
 
             Divider()
 
@@ -70,5 +77,6 @@ struct ControlPanel: View {
             .foregroundStyle(purge.remaining > 0 ? Color.red : Color.secondary)
         }
         .padding(16).frame(width: 290)
+        .onAppear { helper.check() }
     }
 }

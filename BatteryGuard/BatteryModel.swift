@@ -17,6 +17,8 @@ final class BatteryModel: ObservableObject {
     var onChange: (() -> Void)?
     private var watcher: PowerWatcher?
     
+    private var timer: Timer?
+    
     init() {
         watcher = PowerWatcher { [weak self] in
             self?.refresh()
@@ -32,4 +34,11 @@ final class BatteryModel: ObservableObject {
         }
         onChange?()
     }
+    
+    func startFastRefresh() {
+        refresh()
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.refresh() }
+    }
+    func stopFastRefresh() { timer?.invalidate(); timer = nil }
 }
