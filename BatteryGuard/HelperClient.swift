@@ -18,7 +18,10 @@ final class HelperClient: ObservableObject {
 
     private let log = Logger(subsystem: "ak.BatteryGuard", category: "app")
 
-    var proxy: BatteryHelperProtocol? {
+    var proxy: BatteryHelperProtocol? { remote() }
+
+    /// Returns the helper proxy. `onError` runs if the helper can't be reached.
+    func remote(onError: @escaping () -> Void = {}) -> BatteryHelperProtocol? {
         if conn == nil {
             let c = NSXPCConnection(machServiceName: kHelperMachName, options: .privileged)
             c.remoteObjectInterface = NSXPCInterface(with: BatteryHelperProtocol.self)
@@ -28,6 +31,7 @@ final class HelperClient: ObservableObject {
         }
         return conn?.remoteObjectProxyWithErrorHandler { [log] err in
             log.error("XPC error: \(err.localizedDescription, privacy: .public)")
+            onError()
         } as? BatteryHelperProtocol
     }
 
@@ -51,9 +55,44 @@ final class HelperClient: ObservableObject {
     }
 
 
+    private var pending: (upper: Int, sailing: Bool, floor: Int)?
+    private var retryScheduled = false
+
     func push(upper: Int, sailing: Bool, floor: Int) {
-        proxy?.configure(upper: upper, sailingEnabled: sailing, floor: floor) { _ in }
-        check()
+        pending = (upper, sailing, floor)
+        sendPending()
+    }
+
+    private func sendPending() {
+        guard let cfg = pending else { return }
+        guard let p = remote(onError: { [weak self] in self?.retryLater() }) else {
+            retryLater(); return
+        }
+        p.configure(upper: cfg.upper, sailingEnabled: cfg.sailing, floor: cfg.floor) { [weak self] ok in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if ok {
+                    self.pending = nil
+                    self.alive = true
+                } else {
+                    self.retryLater()
+                }
+            }
+        }
+    }
+
+    private func retryLater() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.alive = false
+            guard !self.retryScheduled else { return }
+            self.retryScheduled = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+                guard let self else { return }
+                self.retryScheduled = false
+                self.sendPending()
+            }
+        }
     }
     
     func check() {

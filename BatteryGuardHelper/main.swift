@@ -13,7 +13,13 @@ final class Engine: NSObject, NSXPCListenerDelegate, BatteryHelperProtocol {
     private let d = UserDefaults.standard
     private let log = Logger(subsystem: "ak.BatteryGuard", category: "helper")
     private var watcher: PowerWatcher?
-    private var refilling = false          // true = fell to the floor, charging back up to the limit
+    
+    private var refilling: Bool {
+        get { d.bool(forKey: "refilling") }
+        set { d.set(newValue, forKey: "refilling") }
+    }
+    private var backstop: Timer?
+    
     private var lastCeiling: Int?
     private(set) var holding = false
 
@@ -28,7 +34,21 @@ final class Engine: NSObject, NSXPCListenerDelegate, BatteryHelperProtocol {
         }
         SMCBattery.setLED(.system)         // clear any LED override from earlier builds
         watcher = PowerWatcher { [weak self] in self?.evaluate() }
+        // Backstop: power notifications don't fire on every percentage step, so re-check
+        // every minute and re-apply the ceiling if macOS changed it.
+        backstop = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            self?.reassert()
+        }
         evaluate()
+    }
+
+    func reassert() {
+        evaluate()
+        if let want = lastCeiling, NativeLimit.current() != want {
+            log.notice("ceiling drifted from \(want), reapplying")
+            lastCeiling = nil
+            evaluate()
+        }
     }
 
     /// Runs only on power events and settings changes.
