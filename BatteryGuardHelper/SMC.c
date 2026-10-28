@@ -38,3 +38,52 @@ int smc_write(const char *key, const uint8_t *bytes, uint32_t len) {
     if (smc_call(&in, &out) != KERN_SUCCESS) return -5;
     return out.result == 0 ? 0 : -3;
 }
+
+int smc_keyinfo(const char *key, uint32_t *size) {
+    SMCKeyData in = {0}, out = {0};
+    in.key = fourcc(key); in.data8 = 9;                  // 9 = get key info
+    if (smc_call(&in, &out) != KERN_SUCCESS) return -4;
+    if (out.result != 0) return -2;
+    *size = out.keyInfo.dataSize;
+    return 0;
+}
+
+static int smc_info_and_read(uint32_t key, uint8_t *bytes, uint32_t *size) {
+    SMCKeyData in = {0}, out = {0};
+    in.key = key; in.data8 = 9;                          // 9 = get key info
+    if (smc_call(&in, &out) != KERN_SUCCESS || out.result != 0) return -1;
+    *size = out.keyInfo.dataSize;
+    if (*size > 32) *size = 32;
+    in.keyInfo = out.keyInfo; in.data8 = 5;              // 5 = read bytes
+    memset(&out, 0, sizeof(out));
+    if (smc_call(&in, &out) != KERN_SUCCESS || out.result != 0) return -2;
+    memcpy(bytes, out.bytes, *size);
+    return 0;
+}
+
+int smc_read_key(uint32_t key, uint8_t *bytes, uint32_t *size) {
+    return smc_info_and_read(key, bytes, size);
+}
+
+int smc_key_count(uint32_t *count) {
+    uint8_t b[32]; uint32_t sz = 0;
+    if (smc_info_and_read(fourcc("#KEY"), b, &sz) != 0 || sz < 4) return -1;
+    *count = ((uint32_t)b[0] << 24) | ((uint32_t)b[1] << 16) | ((uint32_t)b[2] << 8) | b[3];
+    return 0;
+}
+
+int smc_key_at(uint32_t index, uint32_t *key) {
+    SMCKeyData in = {0}, out = {0};
+    in.data8 = 8; in.data32 = index;                     // 8 = get key by index
+    if (smc_call(&in, &out) != KERN_SUCCESS || out.result != 0) return -1;
+    *key = out.key;
+    return 0;
+}
+
+int smc_read_key_attr(uint32_t key, uint8_t *attr) {
+    SMCKeyData in = {0}, out = {0};
+    in.key = key; in.data8 = 9;                          // 9 = get key info
+    if (smc_call(&in, &out) != KERN_SUCCESS || out.result != 0) return -1;
+    *attr = out.keyInfo.dataAttributes;
+    return 0;
+}

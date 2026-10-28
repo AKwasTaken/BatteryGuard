@@ -38,11 +38,14 @@ enum NativeLimit {
     static func set(_ percent: Int) -> Bool {
         let v = min(max(percent, 20), 100)
         guard run("/usr/bin/defaults", ["write", domain, "mclLimitValue", "-int", String(v)]) != nil else {
+            ActivityLog.write("LIMIT", "defaults write FAILED for \(v)")
             log.error("defaults write failed")
             return false
         }
         _ = run("/usr/bin/notifyutil", ["-p", "com.apple.smartcharging.defaultschanged"])
-        let ok = current() == v
+        let readback = current()
+        let ok = readback == v
+        ActivityLog.write("LIMIT", "wrote mclLimitValue=\(v) readback=\(readback.map { "\($0)" } ?? "nil") applied=\(ok)")
         log.notice("ceiling=\(v) applied=\(ok)")
         return ok
     }

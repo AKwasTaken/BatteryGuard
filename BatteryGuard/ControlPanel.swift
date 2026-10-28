@@ -38,7 +38,7 @@ struct ControlPanel: View {
                 }
             }
             .toggleStyle(.switch)
-            .onChange(of: sailing) { _ in push() }
+            .onChange(of: sailing) { _,_ in push() }
 
             VStack(spacing: 6) {
                 RangePill(floor: $floor, limit: $upper, level: Double(m.percent),
@@ -58,11 +58,16 @@ struct ControlPanel: View {
             }
             
             if !helper.alive {
-                Label("Helper isn't running, so limits aren't being applied.",
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption).foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(helper.needsApproval
+                          ? "Approve BatteryGuard in System Settings to apply limits."
+                          : "Limits aren't being applied right now.",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(.orange)
+                    Button("Repair helper") { helper.repair() }
+                        .font(.caption)
+                }
             }
-
             Divider()
 
             Button {

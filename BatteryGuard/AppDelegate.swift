@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         model.onChange = { [weak self] in self?.refreshIcon() }
         refreshIcon()
+        HelperClient.shared.activity("APP launched")
         HelperClient.shared.register()
         
         let d = UserDefaults.standard
@@ -37,6 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                                  sailing: d.bool(forKey: "sailing"),
                                  floor: Int(d.object(forKey: "floor") as? Double ?? 40))
         HelperClient.shared.ensureCurrent()
+        HelperClient.shared.ensureRunning()
 
     }
 
@@ -60,10 +62,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         login.target = self
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         
-        let reset = m.addItem(withTitle: "Reset SMC Overrides", action: #selector(resetSMC), keyEquivalent: "")
-        reset.target = self
+        let logs = m.addItem(withTitle: "Open Logs", action: #selector(openLogs), keyEquivalent: "")
+        logs.target = self
+        
         
         m.addItem(.separator())
+        
         
         let about = m.addItem(withTitle: "About", action: #selector(openAbout), keyEquivalent: "")
         about.target = self
@@ -98,7 +102,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         self.aboutWindow = window
     }
 
-    @objc private func resetSMC() { HelperClient.shared.proxy?.resetOverrides { _ in } }
     @objc private func toggleLogin() {
         let s = SMAppService.mainApp
         try? (s.status == .enabled ? s.unregister() : s.register())
@@ -107,6 +110,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc private func quit() {
         AntPurge.shared.stop()
         NSApp.terminate(nil) 
+    }
+    
+    @objc private func openLogs() {
+        NSWorkspace.shared.open(URL(fileURLWithPath: "/Library/Logs/BatteryGuard", isDirectory: true))
     }
 
     private func refreshIcon() {

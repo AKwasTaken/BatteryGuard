@@ -35,23 +35,64 @@ final class HelperClient: ObservableObject {
         } as? BatteryHelperProtocol
     }
 
+    private let daemon = SMAppService.daemon(plistName: "ak.BatteryGuard.helper.plist")
+    private var repairedAt: Date?
+
+    var needsApproval: Bool { daemon.status == .requiresApproval }
+
     func register() {
-        let svc = SMAppService.daemon(plistName: "ak.BatteryGuard.helper.plist")
-        
-        if svc.status == .notRegistered || svc.status == .notFound {
-            do {
-                try svc.register()
-            } catch {
+        switch daemon.status {
+        case .enabled:
+            break                                   // probe() below checks it's actually running
+        case .requiresApproval:
+            SMAppService.openSystemSettingsLoginItems()
+        default:
+            do { try daemon.register() } catch {
                 log.error("register failed: \(error.localizedDescription, privacy: .public)")
             }
         }
-        
-        // Re-check status: if macOS queued it for user approval, open the panel directly
-        if svc.status == .requiresApproval {
-            SMAppService.openSystemSettingsLoginItems()
+        log.notice("helper status = \(self.daemon.status.rawValue)")
+    }
+
+    /// Called shortly after launch: if the helper doesn't answer, repair it.
+    func ensureRunning() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in self?.probe() }
+    }
+
+    /// Unregisters and re-registers the helper, which rebinds it to this app's current location.
+    /// Rate-limited so it can't loop.
+    func repairIfNeeded() {
+        if let t = repairedAt, Date().timeIntervalSince(t) < 60 { return }
+        repairedAt = Date()
+        log.notice("helper not answering, repairing registration")
+        Task { [weak self] in
+            guard let self else { return }
+            try? await self.daemon.unregister()
+            try? self.daemon.register()
+            if self.daemon.status == .requiresApproval {
+                SMAppService.openSystemSettingsLoginItems()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in self?.probe() }
         }
-        
-        log.notice("helper status = \(svc.status.rawValue)") // 0 none, 1 enabled, 2 needs approval, 3 not found
+    }
+
+    /// User-triggered repair (the button in the menu).
+    func repair() {
+        repairedAt = nil
+        repairIfNeeded()
+    }
+
+    private func probe() {
+        let p = remote(onError: { [weak self] in
+            DispatchQueue.main.async { self?.alive = false; self?.repairIfNeeded() }
+        })
+        p?.status { [weak self] _, _, _ in
+            DispatchQueue.main.async { self?.alive = true }
+        }
+    }
+    
+    func activity(_ message: String) {
+        proxy?.appLog(message)
     }
 
 

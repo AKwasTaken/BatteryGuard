@@ -16,3 +16,10 @@ typedef struct {
 
 int smc_open(void);
 int smc_write(const char *key, const uint8_t *bytes, uint32_t len);
+int smc_keyinfo(const char *key, uint32_t *size);
+
+int smc_key_count(uint32_t *count);
+int smc_key_at(uint32_t index, uint32_t *key);
+int smc_read_key(uint32_t key, uint8_t *bytes, uint32_t *size);
+
+int smc_read_key_attr(uint32_t key, uint8_t *attr);

@@ -16,4 +16,6 @@ let kHelperMachName = "ak.BatteryGuard.helper"
     
     func build(reply: @escaping (String) -> Void)
     func restart()
+    
+    func appLog(_ message: String)
 }
