@@ -4,26 +4,39 @@
 
 <div align='center'>
 <h1>Battery Guard</h1>
+<img src='https://img.shields.io/badge/Status-Deprecated-red'></img>
 <img src='https://img.shields.io/badge/Swift-6.3-blue'></img>
 <img src='https://img.shields.io/badge/License-MIT-yellow'></img>
-<a href="https://www.codefactor.io/repository/github/akwastaken/batteryguard"><img src="https://www.codefactor.io/repository/github/akwastaken/batteryguard/badge" alt="CodeFactor" /></a>
 <br><br><br>
 </div>
 
-A lightweight, zero-bloat menu bar utility for Apple Silicon that manages battery charging thresholds without manual polling or background battery drain.
+> **This project is deprecated and no longer maintained.**
+>
+> On Apple Silicon Macs running recent versions of macOS, Apple restricts the system interface that controls charging to its own software. Third-party apps can't reliably enforce a custom charge limit or sailing mode, so BatteryGuard can't deliver what it was built for. The repository is archived: it remains readable, but no issues or pull requests are accepted.
+>
+> **For a working alternative, use [AlDente](https://apphousekit.com/aldente/).**
+>
+> If you installed BatteryGuard, see [Uninstalling](#uninstalling) below to remove its helper and restore your charge limit.
 
-## What it does
+## What it was meant to do
 
-- **Custom Charge Limits**: Holds the battery at your chosen upper ceiling (50–100%) directly via native Apple Silicon top-off protection—running entirely off the power adapter without trickle charging.
-- **Sailing Mode**: Allows the battery to float down to an idle floor percentage before resuming charging back up to your limit, reducing cycle stress.
-- **Event-Driven**: Hooks directly into `IOKit` power notifications rather than waking up CPU timers to poll battery levels.
-- **Thermal Cycle (Ant Purge)**: A short, 3-minute controlled multi-core SIMD load designed to safely bring system thermals up when needed.
+- **Custom charge limits**: hold the battery at a chosen ceiling (50–100%) while plugged in.
+- **Sailing mode**: let the battery drift down to a floor percentage before charging back up to the limit.
+- **Event-driven design**: react to `IOKit` power notifications, with a periodic backstop check.
 
-## Setup
+These features worked only intermittently on the hardware this was tested on, and the charge-stop control they depend on isn't available to third-party apps on current macOS.
 
-1. Build or download `BatteryGuard.app`.
-2. Move it to `/Applications` and launch.
-3. When prompted, allow background execution in **System Settings → General → Login Items & Extensions** to authorize the lightweight helper daemon.
+## Uninstalling
+
+1. Quit BatteryGuard from its menu bar icon. This hands the charge limit back to macOS.
+2. Remove the helper daemon:
+   ```
+   sudo launchctl bootout system/ak.BatteryGuard.helper
+   ```
+3. Delete `BatteryGuard.app` from `/Applications`.
+4. In **System Settings → General → Login Items & Extensions**, remove any remaining BatteryGuard entry.
+5. Set your charge limit in **System Settings → Battery**.
+6. Optional: remove the logs with `sudo rm -rf /Library/Logs/BatteryGuard`.
 
 ## License
 
