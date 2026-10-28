@@ -14,7 +14,7 @@
 >
 > On Apple Silicon Macs running recent versions of macOS, Apple restricts the system interface that controls charging to its own software. Third-party apps can't reliably enforce a custom charge limit or sailing mode, so BatteryGuard can't deliver what it was built for. The repository is archived: it remains readable, but no issues or pull requests are accepted.
 >
-> **For a working alternative, use [AlDente](https://apphousekit.com/aldente/).**
+> **For a working alternative, use [AlDente](https://apphousekitchen.com).**
 >
 > If you installed BatteryGuard, see [Uninstalling](#uninstalling) below to remove its helper and restore your charge limit.
 
